@@ -753,17 +753,16 @@ class Sprite(object):
         # compile one template for each file
         margin = int(self.config.margin)
 
-        json_data = []
+        json_data = {}
         for image in self.images:
-            json_data.append({
-                'class_name': image.class_name,
+            json_data[image.class_name] = {
                 'sprite_url': self.image_url(),
                 # save the position instead the offset
                 'x': round_up((image.x - margin * self.max_ratio) / self.max_ratio), 
                 'y': round_up((image.y - margin * self.max_ratio) / self.max_ratio),
                 'height': round_up((image.height / self.max_ratio) + image.vertical_padding),
                 'width':  round_up((image.width / self.max_ratio) + image.horizontal_padding),
-            })
+            }
         json_file.write(json.dumps(json_data))
         json_file.close()
 
