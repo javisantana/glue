@@ -9,6 +9,7 @@ import signal
 import hashlib
 import subprocess
 import ConfigParser
+import json
 from optparse import OptionParser, OptionGroup
 
 from PIL import Image as PImage
@@ -36,6 +37,7 @@ DEFAULT_SETTINGS = {
     'crop': False,
     'url': '',
     'less': False,
+    'json': False,
     'optipng': False,
     'html': False,
     'ignore_filename_paddings': False,
@@ -734,6 +736,37 @@ class Sprite(object):
                                      "the original file.")
                     save()
 
+    def save_json(self):
+        """Create the CSS or LESS file for this sprite."""
+        format = 'json'
+        self.manager.log("Creating '%s' %s file..." % (self.name, format))
+
+        output_path = self.manager.output_path('css')
+        filename = '%s.%s' % (self.filename, format)
+        json_filename = os.path.join(output_path, filename)
+
+        # Fix css urls on Windows
+        json_filename = '/'.join(json_filename.split('\\'))
+
+        json_file = open(json_filename, 'w')
+
+        # compile one template for each file
+        margin = int(self.config.margin)
+
+        json_data = []
+        for image in self.images:
+            json_data.append({
+                'class_name': image.class_name,
+                'sprite_url': self.image_url(),
+                # save the position instead the offset
+                'x': round_up((image.x - margin * self.max_ratio) / self.max_ratio), 
+                'y': round_up((image.y - margin * self.max_ratio) / self.max_ratio),
+                'height': round_up((image.height / self.max_ratio) + image.vertical_padding),
+                'width':  round_up((image.width / self.max_ratio) + image.horizontal_padding),
+            })
+        json_file.write(json.dumps(json_data))
+        json_file.close()
+
     def save_css(self):
         """Create the CSS or LESS file for this sprite."""
         format = 'less' if self.config.less else 'css'
@@ -971,6 +1004,8 @@ class BaseManager(object):
         for sprite in self.sprites:
             sprite.save_image()
             sprite.save_css()
+            if self.config.json:
+                sprite.save_json()
             if sprite.manager.config.html:
                 sprite.save_html()
 
@@ -1188,6 +1223,8 @@ def main():
             help="crop images removing unnecessary transparent margins")
     parser.add_option("-l", "--less", dest="less", action='store_true',
             help="generate output stylesheets as .less instead of .css")
+    parser.add_option("-j", "--json", dest="json", action='store_true',
+            help="generate sprite metadata as .json")
     parser.add_option("-u", "--url", dest="url",
             help="prepend this url to the sprites filename")
     parser.add_option("-q", "--quiet", dest="quiet", action='store_true',
